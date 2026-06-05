@@ -1,0 +1,56 @@
+name: Update IMDB Database
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'   # 3am UTC every Sunday
+  workflow_dispatch:       # allow manual trigger from GitHub UI
+
+permissions:
+  contents: write
+
+jobs:
+  build-db:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download IMDB flat files
+        run: |
+          echo "Downloading title.ratings.tsv.gz (~7MB)..."
+          wget -q https://datasets.imdbws.com/title.ratings.tsv.gz
+          echo "Downloading title.basics.tsv.gz (~200MB)..."
+          wget -q https://datasets.imdbws.com/title.basics.tsv.gz
+          echo "Decompressing..."
+          gunzip title.ratings.tsv.gz
+          gunzip title.basics.tsv.gz
+          echo "Done."
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build SQLite database
+        run: python3 scripts/build_imdb_db.py
+
+      - name: Create or update GitHub release
+        run: |
+          gh release view imdb-db-latest --repo ${{ github.repository }} > /dev/null 2>&1 \
+            || gh release create imdb-db-latest \
+                --repo ${{ github.repository }} \
+                --title "IMDB Database — Latest" \
+                --notes "Auto-updated weekly. Contains IMDB ratings, vote counts and media type for ~540K movies and TV series." \
+                --latest
+          gh release upload imdb-db-latest \
+            imdb_ratings.db imdb_manifest.json \
+            --repo ${{ github.repository }} \
+            --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "### IMDB Database Updated" >> $GITHUB_STEP_SUMMARY
+          cat imdb_manifest.json >> $GITHUB_STEP_SUMMARY
