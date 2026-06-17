@@ -36,7 +36,8 @@ def build_basics_index():
                 continue
             try:
                 media_type = "m" if tt in MOVIE_TYPES else "t"
-                index[row["tconst"]] = (int(year), media_type)
+                genres = row["genres"] if row["genres"] != "\\N" else ""
+                index[row["tconst"]] = (int(year), media_type, genres)
             except ValueError:
                 pass
     return index
@@ -55,6 +56,7 @@ def build_database(basics_index):
             averageRating REAL    NOT NULL,
             numVotes      INTEGER NOT NULL,
             mediaType     TEXT    NOT NULL,
+            genres        TEXT    NOT NULL,
             PRIMARY KEY (tconst)
         )
     """)
@@ -71,22 +73,23 @@ def build_database(basics_index):
             entry = basics_index.get(tconst)
             if entry is None:
                 continue
-            year, media_type = entry
+            year, media_type, genres = entry
             try:
                 rating = float(row["averageRating"])
                 votes  = int(row["numVotes"])
             except ValueError:
                 continue
-            batch.append((tconst, year, rating, votes, media_type))
+            batch.append((tconst, year, rating, votes, media_type, genres))
             count += 1
             if len(batch) == 10_000:
-                cur.executemany("INSERT INTO imdb_ratings VALUES (?,?,?,?,?)", batch)
+                cur.executemany("INSERT INTO imdb_ratings VALUES (?,?,?,?,?,?)", batch)
                 batch.clear()
                 print(f"\r  {count:,} rows inserted...", end="", flush=True)
 
     if batch:
-        cur.executemany("INSERT INTO imdb_ratings VALUES (?,?,?,?,?)", batch)
+        cur.executemany("INSERT INTO imdb_ratings VALUES (?,?,?,?,?,?)", batch)
 
+    conn.execute("PRAGMA user_version = 3")
     conn.commit()
     conn.close()
     return count
