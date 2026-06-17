@@ -6,7 +6,7 @@ Auto-update pipeline for the [Watch](https://github.com/dhavalmotghare) Android 
 
 Every Sunday at 3am UTC, a GitHub Action:
 1. Downloads the latest IMDB flat files (`title.basics.tsv.gz` + `title.ratings.tsv.gz`)
-2. Builds a SQLite database with ~540K movie/TV entries (tconst, startYear, averageRating, numVotes, mediaType)
+2. Builds a SQLite database with ~540K movie/TV entries (tconst, startYear, averageRating, numVotes, mediaType, genres)
 3. Publishes `imdb_ratings.db` + `imdb_manifest.json` to the `imdb-db-latest` release
 
 ## Release assets
